@@ -42,6 +42,13 @@ func (df *DNSFlow) preCompile() {
 	df.flatDomains = res
 }
 
+// Restart close the old channel and restart
+func (df *DNSFlow) Restart() chan string {
+	close(df.stream)
+	df.stream = make(chan string, 100)
+	return df.Start()
+}
+
 // Start the domain stream
 func (df *DNSFlow) Start() chan string {
 	total := 0

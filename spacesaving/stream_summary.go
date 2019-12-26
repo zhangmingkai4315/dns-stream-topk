@@ -28,31 +28,33 @@ func NewStreamSummary(topk int) *StreamSummary {
 	}
 	return &ss
 }
-
+func (ss *StreamSummary) Name() string {
+	return "StreamSummary"
+}
 func (ss *StreamSummary) Offer(item string, increment int) {
 	ss.streamCounter++
 	if itemInCache, ok := ss.cache[item]; ok == true {
 		counter := itemInCache
-		ss.incrementCounter(counter)
+		ss.incrementCounter(counter, increment)
 	} else {
 		minElement := ss.buckets.Tail.Children.Head
 		// originalMin := minElement.Value
 		delete(ss.cache, minElement.Key)
 		ss.cache[item] = minElement
 		minElement.Key = item
-		ss.incrementCounter(minElement)
+		ss.incrementCounter(minElement, increment)
 		// if len(ss.cache) > ss.capacity {
 		// 	minElement.ErrorCount = originalMin
 		// }
 	}
 }
 
-func (ss *StreamSummary) incrementCounter(counter *Counter) {
+func (ss *StreamSummary) incrementCounter(counter *Counter, increment int) {
 	bucket := counter.ParentBucket
 	bucketNext := bucket.Prev
 	bucket.Children.Remove(counter)
 	// next := bucket.
-	counter.Value++
+	counter.Value += uint64(increment)
 	if bucketNext != nil && counter.Value == bucketNext.Counter {
 		bucketNext.Children.insertEnd(counter)
 		counter.ParentBucket = bucketNext

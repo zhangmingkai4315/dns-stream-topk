@@ -5,19 +5,21 @@ import "fmt"
 // HeapNode define the heap node
 type HeapNode struct {
 	Key     string
-	Counter int
+	Error   uint64
+	Counter uint64
 }
 
 // Value return the node value
 func (node *HeapNode) String() string {
-	return fmt.Sprintf("%s:%d", node.Key, node.Counter)
+	return fmt.Sprintf("%s:%d(%d)", node.Key, node.Counter, node.Error)
 }
 
 // NewHeapNode create a new heap node
-func NewHeapNode(value string, counter int) *HeapNode {
+func NewHeapNode(value string, counter uint64) *HeapNode {
 	return &HeapNode{
 		Key:     value,
 		Counter: counter,
+		Error:   0,
 	}
 }
 
@@ -26,13 +28,15 @@ func NewHeapNode(value string, counter int) *HeapNode {
 type Heap struct {
 	Data []*HeapNode
 	N    int
+	Max  int
 }
 
 // NewHeap create Heap object
 func NewHeap(maxN int) *Heap {
 	return &Heap{
-		Data: make([]*HeapNode, maxN+1),
+		Data: []*HeapNode{},
 		N:    0,
+		Max:  maxN,
 	}
 }
 
@@ -41,9 +45,9 @@ func (heap *Heap) IsEmpty() bool {
 	return heap.N == 0
 }
 
-// Size returns the number of keys on this priority heap.
-func (heap *Heap) Size() int {
-	return heap.N
+// IsFull returns true if this priority heap is full.
+func (heap *Heap) IsFull() bool {
+	return heap.N == heap.Max
 }
 
 // Min return the min value of Data
@@ -51,73 +55,72 @@ func (heap *Heap) Min() (*HeapNode, error) {
 	if heap.IsEmpty() {
 		return nil, nil
 	}
-	return heap.Data[1], nil
+	return heap.Data[0], nil
 }
 
-// Insert a new item
-func (heap *Heap) Insert(node *HeapNode) {
-	if heap.N != len(heap.Data)-1 {
-		heap.N++
+func (heap *Heap) BuildFromSlice(data []*HeapNode) {
+	n := len(data)
+	heap.Data = data
+	for i := n/2 - 1; i >= 0; i-- {
+		heap.down(i, n)
 	}
-	heap.Data[heap.N] = node
-	heap.swim(heap.N)
-
 }
 
-func (heap *Heap) resize(capcity int) {
-	temp := make([]*HeapNode, capcity)
-	N := heap.N
-	for i := 1; i <= N; i++ {
-		temp[i] = heap.Data[i]
-	}
-	heap.Data = temp
-}
-
-// DelMin delete the min priority and return the key value
-func (heap *Heap) DelMin() *HeapNode {
-	if heap.IsEmpty() {
-		return nil
-	}
-	min := heap.Data[1]
-	heap.Exchange(1, heap.N)
-	heap.N--
-	heap.sink(1)
-	if heap.N > 0 && heap.N == (len(heap.Data)-1)/4 {
-		heap.resize(len(heap.Data) / 2)
-	}
-	return min
-}
-
-// Exchange i and j items
-func (heap *Heap) Exchange(i, j int) {
-	heap.Data[i], heap.Data[j] = heap.Data[j], heap.Data[i]
-}
-
-// Less return the compare result
-func (heap *Heap) Less(i, j int) bool {
-	if heap.Data[i].Counter < heap.Data[j].Counter {
-		return true
-	}
-	return false
-}
-
-func (heap *Heap) sink(k int) {
-	for 2*k <= heap.N {
-		j := 2 * k
-		if j < heap.N && heap.Less(j, j+1) == false {
-			j++
-		}
-		if heap.Less(k, j) {
+func (heap *Heap) down(index int, size int) bool {
+	i := index
+	for {
+		j1 := 2*i + 1
+		if j1 >= size || j1 < 0 { // j1 < 0 after int overflow
 			break
 		}
-		heap.Exchange(k, j)
-		k = j
+		j := j1 // left child
+		if j2 := j1 + 1; j2 < size && heap.Data[j2].Counter < heap.Data[j1].Counter {
+			j = j2 // = 2*i + 2
+		}
+		if !(heap.Data[j].Counter < heap.Data[i].Counter) {
+			break
+		}
+		heap.Data[i], heap.Data[j] = heap.Data[j], heap.Data[i]
+		i = j
+	}
+	return i > index
+}
+
+func (heap *Heap) up(j int) {
+	for {
+		i := (j - 1) / 2 // parent
+		if i == j || !(heap.Data[j].Counter < heap.Data[i].Counter) {
+			break
+		}
+		heap.Data[i], heap.Data[j] = heap.Data[j], heap.Data[i]
+		j = i
 	}
 }
 
-func (heap *Heap) swim(k int) {
-	for k > 1 && heap.Less(k/2, k) == false {
-		heap.Exchange(k, k/2)
-		k = k / 2
+// Push new element to heap
+func (heap *Heap) Push(node *HeapNode) {
+	if heap.N < heap.Max {
+		heap.N++
+	}
+	heap.Data = append(heap.Data, node)
+	heap.up(heap.N - 1)
+}
+
+// Pop the min element from the heap
+func (heap *Heap) Pop() *HeapNode {
+	if heap.N == 0 {
+		return nil
+	}
+	n := heap.N - 1
+	heap.Data[0], heap.Data[n] = heap.Data[n], heap.Data[0]
+	heap.down(0, n)
+	heap.N--
+	return heap.Data[n]
+}
+
+// Fix the heap when the element changed
+func (heap *Heap) Fix(i int) {
+	if !(heap.down(i, heap.N)) {
+		heap.up(i)
 	}
 }
