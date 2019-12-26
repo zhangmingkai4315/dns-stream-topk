@@ -6,6 +6,7 @@ import (
 
 	"github.com/zhangmingkai4315/stream-topk/spacesaving"
 	"github.com/zhangmingkai4315/stream-topk/stream"
+	"github.com/zhangmingkai4315/stream-topk/utils"
 )
 
 func main() {
@@ -24,29 +25,37 @@ func main() {
 		"l.com": 5,
 		"m.com": 3,
 	}
-
+	startUsage := utils.NewMemoryUsage()
 	for {
+
 		streamManagers := []spacesaving.StreamManager{
 			spacesaving.NewStreamSummary(10),
 			spacesaving.NewStreamHeap(10),
+			spacesaving.NewFilterSpaceSaving(10),
 		}
 		for _, manager := range streamManagers {
+			usage := utils.NewMemoryUsage()
 			flow, err := stream.NewDNSFlow(config, 0, time.Duration(10)*time.Second)
 			if err != nil {
 				panic(err)
 			}
-			fmt.Printf("start the domain stream generator\n")
+			fmt.Printf("Start the domain stream generator\n")
 			stream := flow.Start()
 			count := 0
 			for domain := range stream {
 				count++
 				manager.Offer(domain, 1)
 			}
-			fmt.Printf("stream generate %d domains per seconds\n", count/10)
-			fmt.Printf("----Result of TopK for %s----\n", manager.Name())
+
+			fmt.Printf("Name: %s \nPPS:%d \nTopk:\n", manager.Name(), count/10)
 			for index, result := range manager.Top() {
-				fmt.Printf("[%d]%s, %d \n", index+1, result.Key, result.Count)
+				fmt.Printf("  [%d]%s, %d \n", index+1, result.Key, result.Count)
 			}
+			fmt.Println("Curren loop:")
+			usage.DiffPrint()
+			fmt.Println("Since Start:")
+			startUsage.DiffPrint()
+			fmt.Println("------------------------------")
 		}
 	}
 

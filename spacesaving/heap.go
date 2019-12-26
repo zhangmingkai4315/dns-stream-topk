@@ -65,7 +65,14 @@ func (heap *Heap) BuildFromSlice(data []*HeapNode) {
 		heap.down(i, n)
 	}
 }
-
+func (heap *Heap) find(key string) *HeapNode {
+	for _, item := range heap.Data {
+		if item.Key == key {
+			return item
+		}
+	}
+	return nil
+}
 func (heap *Heap) down(index int, size int) bool {
 	i := index
 	for {
